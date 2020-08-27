@@ -1,0 +1,60 @@
+推荐服务python算法模块以及redis服务启动说明
+使用人员：运营维护人员
+首先是anaconda安装，这个是按照江曼博士之前给的安装包安装，各环境下现在应该都已经安装过了。
+
+找到Anaconda3-2019.07-Linux-x86_64.sh安装文件，拷贝到部署的服务器
+然后bash Anaconda3-5.1.0-Linux-x86_64.sh
+中间需要根据提示，点击回车，以及输入yes
+安装完之后，关闭终端，重新打开终端，才能到anaconda的base环境
+
+现在，运维人员需要做的几个步骤：
+
+(1)部署服务器##################################
+拷贝svn上的cloudbrain-recommend下hotsale-recommend目录到要部署的服务器,并放在/opt/ado-services/cloudbrain-recommend/cloudbrain-recommend目录下
+这次部署主要是增加了一个hotsale-recommend目录，然后将之前的包拆分成hotsale_offline_com和hotsale_online_server，并放到hotsale-recommend目录下
+
+(2)安装python依赖包##################################
+
+pip install -r /opt/ado-services/cloudbrain-recommend/cloudbrain-recommend/requirements.txt
+然后替换tfidf.py文件，运行以下命令
+mv /opt/ado-services/cloudbrain-recommend/cloudbrain-recommend/tfidf.py /root/anaconda3/lib/python3.7/site-packages/jieba/analyse/tfidf.py
+
+(3)配置##################################
+配置文件修改(双源数据库和redis配置)：
+
+将/opt/ado-services/cloudbrain-recommend/cloudbrain-recommend/目录下的config.ini文件
+移动并替换/opt/ado-services/cloudbrain-recommend/conf/目录下的config.ini
+
+然后部署到不同的环境（99环境）上时，修改config.ini文件中[mysql_1]的服务器配置为对应环境上hisense库的配置，[mysql_2]的配置为对应环境上社区云脑库的配置
+redis的ip配置为对应测试环境redis的ip,port配置为相对应的redis的端口号，redis_num默认为0,expire_time为redis的有效期可适当配置。
+配置文件中的[dbTable]参数为社区云脑库(mysql_2)中建立的四个表，
+[dbTable]
+order_table = cb_owner_buy_goods_info
+filter_table = cb_goods_spu_for_filter
+hotsalerec_table = cb_hotsale_owner_rec_goods
+foryourec_table = cb_foryou_owner_rec_goods
+
+
+需要执行svn中两个sql脚本建表,svn中建表脚本：
+6602_cloudbrain-recommend-order.sql
+6602_cloudbrain-recommend-foryou.sql
+
+(4)服务启动与停止##################################
+三个服务：
+离线热卖推荐计算hotsale_offline_com
+离线为您推荐计算foryou_offline_com
+在线推荐服务online_server
+三个服务均支持配置文件外置与日志打印到终端
+
+三个服务的启动与停止：
+python /opt/ado-services/cloudbrain-recommend/cloudbrain-recommend/offline_com/offline_rechot_main.py --conf /opt/ado-services/cloudbrain-recommend/conf/
+python /opt/ado-services/cloudbrain-recommend/cloudbrain-recommend/offline_com/offline_foryou_main.py --conf /opt/ado-services/cloudbrain-recommend/conf/
+python /opt/ado-services/cloudbrain-recommend/cloudbrain-recommend/online_server/main.py --conf /opt/ado-services/cloudbrain-recommend/conf/
+运维部署时可按照上述格式将其改成supervisorctl 启动命令
+supervisorctl start hotsale_offline_com
+supervisorctl start foryou_offline_com
+supervisorctl start online_server
+supervisorctl stop hotsale_offline_com
+supervisorctl stop foryou_offline_com
+supervisorctl stop online_server
+
